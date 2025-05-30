@@ -47,7 +47,7 @@ fn main() {
         if !Path::new(&key_file_path).exists() { println!("Key does not exist at location: {}", key_file_path)};
         let clear_ssh_agent = Command::new("bash")
             .arg("-c")
-            .arg(&format!("ssh-add -D"))
+            .arg("ssh-add -D".to_string())
             .output();
         match clear_ssh_agent {
             Ok(output) => {
