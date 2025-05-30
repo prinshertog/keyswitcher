@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::{env, fs, process};
 use std::fs::{File, create_dir_all};
 use std::io::Write;
 use dirs::home_dir;
@@ -13,13 +13,22 @@ fn main() {
 
     // These are the parameters given when executing the program
     // When there are no parameters show the help output
-    let help_message = "No parameter supplied\n\
-                              Usage:\n\
-                              - save (name) (key_locations_path)\n\
-                              - load (name)\n\
-                              - delete (name)\n\
-                              - list";
-    let super_parameter = args.get(1).expect(help_message);
+    fn print_help() {
+        println!("No parameter supplied");
+        println!("Usage:");
+        println!("- save (name) (key_locations_path)");
+        println!("- load (name)");
+        println!("- delete (name)");
+        println!("- list");
+    }
+
+    let super_parameter = match args.get(1) {
+        Some(param) => param,
+        None => {
+            print_help();
+            process::exit(1);
+        }
+    };
 
     // Check if the "save" parameter is given
     if super_parameter == "save" {
@@ -36,17 +45,25 @@ fn main() {
         let cred_name = args.get(2).expect("Please supply a credential name");
         let key_file_path = read_config_file(cred_name, folder);
         if !Path::new(&key_file_path).exists() { println!("Key does not exist at location: {}", key_file_path)};
+        let clear_ssh_agent = Command::new("bash")
+            .arg("-c")
+            .arg(&format!("ssh-add -D"))
+            .output();
+        match clear_ssh_agent {
+            Ok(output) => {
+                println!("Removed previous keys from ssh-agent cache");
+                println!("{}", String::from_utf8_lossy(&output.stderr));
+            },
+            Err(err) => println!("Failed to remove previous keys from ssh-agent cache {}", err),
+        }
         let command = Command::new("bash")
             .arg("-c")
             .arg(&format!("ssh-add {}", key_file_path))
             .output();
         match command {
-            Ok(output) if !output.stderr.is_empty() => {
-                println!("Error running ssh-add:\n{}", String::from_utf8_lossy(&output.stderr));
-            },
             Ok(output) => {
-                println!("SSH key added successfully.");
-                println!("{}", String::from_utf8_lossy(&output.stdout));
+                println!("SSH key loaded successfully.");
+                println!("{}", String::from_utf8_lossy(&output.stderr));
             },
             Err(err) => println!("Failed to execute ssh-add: {}", err),
         }
