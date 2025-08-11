@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use crate::{file};
@@ -5,7 +6,7 @@ use crate::{file};
 pub fn save(args: Vec<String>, folder: PathBuf) {
     let cred_name = args.get(2).expect("Please supply a credential name");
     let key_location = args.get(3).expect("Please supply a key location");
-    
+
     let mut key_file_location = key_location.clone();
     key_file_location.push_str(&cred_name);
 
@@ -42,4 +43,28 @@ pub fn load(args: Vec<String>, folder: PathBuf) {
         },
         Err(err) => println!("Failed to execute ssh-add: {}", err),
     }
+}
+
+pub fn change(args: Vec<String>, folder: PathBuf) {
+    let cred_name = args.get(2).expect("Please supply the credential name.");
+    let new_cred_name = args.get(3).expect("Please supply the new credential name.");
+
+    let config_file_location = Path::new(&folder).join(cred_name);
+
+    if cred_name == new_cred_name {
+        println!("New credential name cannot be old credential name.");
+    }
+
+    if !config_file_location.exists() {
+        println!("Config file does not exist!");
+    }
+
+    match fs::rename(config_file_location, folder.join(new_cred_name)) {
+        Ok(()) => {
+            println!("Config name was changed succesfully!");
+        },
+        Err(err) => {
+            println!("Failed to change config name: {}", err.to_string());
+        }
+    };
 }

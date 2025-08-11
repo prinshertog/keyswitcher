@@ -15,6 +15,7 @@ fn print_help() {
     println!("- save (name) (key_locations_path)");
     println!("- load (name)");
     println!("- delete (name)");
+    println!("- change (old name) (new name)");
     println!("- list");
 }
 
@@ -42,6 +43,8 @@ fn main() {
         file::delete(cred_name, config.config_folder)
     } else if super_parameter == "list" {
         file::list(config.config_folder);
+    } else if super_parameter == "change" {
+        config::change(args, config.config_folder);
     } else {
         println!("Invalid parameter");
     };
