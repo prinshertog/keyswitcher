@@ -5,22 +5,62 @@ use dirs::home_dir;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+// These are the parameters given when executing the program
+// When there are no parameters show the help output
+fn print_help() {
+    println!("No parameter supplied");
+    println!("Usage:");
+    println!("- save (name) (key_locations_path)");
+    println!("- load (name)");
+    println!("- delete (name)");
+    println!("- list");
+}
+
+fn save(args: Vec<String>, folder: PathBuf) {
+    let cred_name = args.get(2).expect("Please supply a credential name");
+    let key_location = args.get(3).expect("Please supply a key location");
+    let mut key_file_location = key_location.clone();
+    key_file_location.push_str(&cred_name);
+    if !Path::new(&key_location).exists() {
+        println!("Key does not exist at location: {}", key_location);
+    } else {
+        write_config_to_file(cred_name, key_location, folder);
+    };
+}
+
+fn load(args: Vec<String>, folder: PathBuf) {
+    let cred_name = args.get(2).expect("Please supply a credential name");
+    let key_file_path = read_config_file(cred_name, folder);
+    if !Path::new(&key_file_path).exists() { println!("Key does not exist at location: {}", key_file_path)};
+    let clear_ssh_agent = Command::new("bash")
+        .arg("-c")
+        .arg("ssh-add -D".to_string())
+        .output();
+    match clear_ssh_agent {
+        Ok(output) => {
+            println!("Removed previous keys from ssh-agent cache");
+            println!("{}", String::from_utf8_lossy(&output.stderr));
+        },
+        Err(err) => println!("Failed to remove previous keys from ssh-agent cache {}", err),
+    }
+    let command = Command::new("bash")
+        .arg("-c")
+        .arg(&format!("ssh-add {}", key_file_path))
+        .output();
+    match command {
+        Ok(output) => {
+            println!("SSH key loaded successfully.");
+            println!("{}", String::from_utf8_lossy(&output.stderr));
+        },
+        Err(err) => println!("Failed to execute ssh-add: {}", err),
+    }
+}
+
 fn main() {
     let mut folder = home_dir().unwrap();
     folder.push(".config/gitkeyswitcher/credconfigs");
     // A vector is like an array but scales at runtime
     let args: Vec<String> = env::args().collect();
-
-    // These are the parameters given when executing the program
-    // When there are no parameters show the help output
-    fn print_help() {
-        println!("No parameter supplied");
-        println!("Usage:");
-        println!("- save (name) (key_locations_path)");
-        println!("- load (name)");
-        println!("- delete (name)");
-        println!("- list");
-    }
 
     let super_parameter = match args.get(1) {
         Some(param) => param,
@@ -32,41 +72,9 @@ fn main() {
 
     // Check if the "save" parameter is given
     if super_parameter == "save" {
-        let cred_name = args.get(2).expect("Please supply a credential name");
-        let key_location = args.get(3).expect("Please supply a key location");
-        let mut key_file_location = key_location.clone();
-        key_file_location.push_str(&cred_name);
-        if !Path::new(&key_location).exists() {
-            println!("Key does not exist at location: {}", key_location);
-        } else {
-            write_config_to_file(cred_name, key_location, folder);
-        };
+        save(args, folder);
     } else if super_parameter == "load" {
-        let cred_name = args.get(2).expect("Please supply a credential name");
-        let key_file_path = read_config_file(cred_name, folder);
-        if !Path::new(&key_file_path).exists() { println!("Key does not exist at location: {}", key_file_path)};
-        let clear_ssh_agent = Command::new("bash")
-            .arg("-c")
-            .arg("ssh-add -D".to_string())
-            .output();
-        match clear_ssh_agent {
-            Ok(output) => {
-                println!("Removed previous keys from ssh-agent cache");
-                println!("{}", String::from_utf8_lossy(&output.stderr));
-            },
-            Err(err) => println!("Failed to remove previous keys from ssh-agent cache {}", err),
-        }
-        let command = Command::new("bash")
-            .arg("-c")
-            .arg(&format!("ssh-add {}", key_file_path))
-            .output();
-        match command {
-            Ok(output) => {
-                println!("SSH key loaded successfully.");
-                println!("{}", String::from_utf8_lossy(&output.stderr));
-            },
-            Err(err) => println!("Failed to execute ssh-add: {}", err),
-        }
+        load(args, folder);
     } else if super_parameter == "delete" {
         let cred_name = args.get(2).expect("Please supply a credential name");
         delete_config_file(cred_name, folder)
@@ -99,7 +107,8 @@ fn write_config_to_file(cred_name: &str, key_location: &str, folder: PathBuf) {
 fn read_config_file(cred_name: &str, folder: PathBuf) -> String {
     let mut file_location = folder.clone();
     file_location.push(cred_name);
-    let config_file = fs::read_to_string(file_location).map_err(|_| format!("Could not get config file with name {}", cred_name)).expect("File read error.");
+    let config_file = fs::read_to_string(file_location).map_err(|_|
+        format!("Could not get config file with name {}", cred_name)).expect("File read error.");
     let borrowed_config_file = config_file.split_once(": ")
         .map(|(_, value)| value.trim().to_string())
         .expect("Invalid config format");
