@@ -34,18 +34,25 @@ fn main() {
         }
     };
 
-    if super_parameter == "save" {
-        config::save(args, config.config_folder);
-    } else if super_parameter == "load" {
-        config::load(args, config.config_folder);
-    } else if super_parameter == "delete" {
-        let cred_name = args.get(2).expect("Please supply a credential name");
-        file::delete(cred_name, config.config_folder)
-    } else if super_parameter == "list" {
-        file::list(config.config_folder);
-    } else if super_parameter == "change" {
-        config::change(args, config.config_folder);
-    } else {
-        println!("Invalid parameter");
-    };
+    match super_parameter.as_ref() {
+        "save" => {
+            config::save(args, config.config_folder);
+        },
+        "load" => {
+            config::load(args, config.config_folder);
+        },
+        "delete" => {
+            let cred_name = args.get(2).expect("Please supply a credential name");
+            file::delete(cred_name, config.config_folder)
+        },
+        "change" => {
+            file::list(config.config_folder);
+        },
+        "list" => {
+            config::change(args, config.config_folder);
+        },
+        _ => {
+            println!("Invalid parameter");
+        }
+    }
 }

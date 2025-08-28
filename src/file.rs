@@ -24,8 +24,13 @@ pub fn write(cred_name: &str, key_location: &str, folder: PathBuf) {
 pub fn read(cred_name: &str, folder: PathBuf) -> String {
     let mut file_location = folder.clone();
     file_location.push(cred_name);
-    let config_file = fs::read_to_string(file_location).map_err(|_|
-        format!("Could not get config file with name {}", cred_name)).expect("File read error.");
+    let config_file = match fs::read_to_string(file_location) {
+        Ok(config_file) => config_file,
+        Err(_) => {
+            println!("Config file could not be read, make sure it exists.");
+            std::process::exit(1);
+        }
+    };
     let borrowed_config_file = config_file.split_once(": ")
         .map(|(_, value)| value.trim().to_string())
         .expect("Invalid config format");
